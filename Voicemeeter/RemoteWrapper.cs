@@ -9,13 +9,15 @@ namespace Voicemeeter
 {
     internal static class RemoteWrapper
     {
-        [DllImport("VoicemeeterRemote.dll", EntryPoint = "VBVMR_Login", CallingConvention = CallingConvention.StdCall)]
+		public const string VMDLLName = "VoicemeeterRemote.dll";
+
+		[DllImport(VMDLLName, EntryPoint = "VBVMR_Login", CallingConvention = CallingConvention.StdCall)]
         internal static extern int LoginVoicemeeter();
 
-        [DllImport("VoicemeeterRemote.dll", EntryPoint = "VBVMR_Logout")]
+        [DllImport(VMDLLName, EntryPoint = "VBVMR_Logout")]
         internal static extern int Logout();
 
-        [DllImport("VoicemeeterRemote.dll", EntryPoint = "VBVMR_RunVoicemeeter")]
+        [DllImport(VMDLLName, EntryPoint = "VBVMR_RunVoicemeeter")]
         internal static extern int InternalRunVoicemeeter(int voicemeterType);
 
         // Get/Set Parameters return codes
@@ -26,23 +28,23 @@ namespace Voicemeeter
         //        -5: structure mismatch
 
         // long __stdcall VBVMR_GetParameterFloat(char * szParamName, float * pValue);
-        [DllImport("VoicemeeterRemote.dll", EntryPoint = "VBVMR_GetParameterFloat")]
+        [DllImport(VMDLLName, EntryPoint = "VBVMR_GetParameterFloat")]
         internal static extern int GetParameter(string szParamName, ref float value);
 
         // long __stdcall VBVMR_SetParameterFloat(char * szParamName, float Value);
-        [DllImport("VoicemeeterRemote.dll", EntryPoint = "VBVMR_SetParameterFloat")]
+        [DllImport(VMDLLName, EntryPoint = "VBVMR_SetParameterFloat")]
         internal static extern int SetParameter(string szParamName, float value);
 
         //long __stdcall VBVMR_GetParameterStringA(char* szParamName, char* szString);
         //long __stdcall VBVMR_GetParameterStringW(char* szParamName, unsigned short* wszString);
-        [DllImport("VoicemeeterRemote.dll", EntryPoint = "VBVMR_GetParameterStringW", CallingConvention = CallingConvention.StdCall)]
+        [DllImport(VMDLLName, EntryPoint = "VBVMR_GetParameterStringW", CallingConvention = CallingConvention.StdCall)]
         internal static extern int InternalGetParameterW(
             [MarshalAs(UnmanagedType.LPStr)] string szParamName,      // char*
             [MarshalAs(UnmanagedType.LPWStr)] StringBuilder value);   // unsigned short*
 
         // long __stdcall VBVMR_SetParameterStringA(char* szParamName, char* szString);
         // long __stdcall VBVMR_SetParameterStringW(char* szParamName, unsigned short* wszString);
-        [DllImport("VoicemeeterRemote.dll", EntryPoint = "VBVMR_SetParameterStringW", CallingConvention = CallingConvention.StdCall)]
+        [DllImport(VMDLLName, EntryPoint = "VBVMR_SetParameterStringW", CallingConvention = CallingConvention.StdCall)]
         internal static extern int InternalSetParameterW(
             [MarshalAs(UnmanagedType.LPStr)] string szParamName,      // char*
             [MarshalAs(UnmanagedType.LPWStr)] string value);          // unsigned short*
@@ -55,11 +57,11 @@ namespace Voicemeeter
         //			-1: error(unexpected)
         //			-2: no server.
         // long __stdcall VBVMR_IsParametersDirty(void);
-        [DllImport("VoicemeeterRemote.dll", EntryPoint = "VBVMR_IsParametersDirty")]
+        [DllImport(VMDLLName, EntryPoint = "VBVMR_IsParametersDirty")]
         internal static extern int IsParametersDirty();
 
         // long __stdcall VBVMR_GetLevel(long nType, long nuChannel, float* pValue);
-        [DllImport("VoicemeeterRemote.dll", EntryPoint = "VBVMR_GetLevel")]
+        [DllImport(VMDLLName, EntryPoint = "VBVMR_GetLevel")]
         internal static extern int GetLevel(int nType, int nuChannel, ref float value);
     }
 }
