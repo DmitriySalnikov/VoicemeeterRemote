@@ -12,7 +12,7 @@ namespace Voicemeeter
         {
             try
             {
-                RemoteWrapper.Logout();
+                RemoteWrapper.VBVMR_Logout();
             }
             catch (Exception)
             {

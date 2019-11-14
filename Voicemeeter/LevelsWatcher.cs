@@ -12,7 +12,7 @@ namespace Voicemeeter
 	///  var levels = new Voicemeeter.Levels(channels, 20);
 	///  levels.OnRecieveNewLevels += (x => DoSomethingWithFloatArray(x));
 	/// </summary>
-	public class Levels : IDisposable
+	public class LevelsWatcher : IDisposable
 	{
 		public class Channel
 		{
@@ -21,13 +21,15 @@ namespace Voicemeeter
 		};
 
 		public delegate void VoidFloatArray(float[] levels);
+		public delegate void VoidLevelError(LevelError error);
 		public event VoidFloatArray OnRecieveNewLevels;
+		public event VoidLevelError OnError;
 
 		private readonly List<Channel> channels = new List<Channel>();
 		private bool isWorking = false;
-		private int msecs = 20;
+		private int msecs = 16;
 
-		public Levels(Channel[] _channels, int milliseconds = 20)
+		public LevelsWatcher(Channel[] _channels, int milliseconds = 16)
 		{
 
 			msecs = milliseconds;
@@ -43,8 +45,19 @@ namespace Voicemeeter
 				var values = new List<float>(channels.Count);
 				foreach (var channel in channels)
 				{
-					values.Add(Voicemeeter.Remote.GetLevel(channel.LevelType, channel.ChannelNumber));
+					var error = Remote.GetLevel(channel.LevelType, channel.ChannelNumber, out float res);
+					if (error != LevelError.OK)
+					{
+						OnError?.Invoke(error);
+						isWorking = false;
+						break;
+					}
+					values.Add(res);
 				}
+
+				if (!isWorking)
+					break;
+
 				OnRecieveNewLevels?.Invoke(values.ToArray());
 
 				await Task.Delay(msecs);
