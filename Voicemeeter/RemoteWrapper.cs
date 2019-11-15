@@ -265,7 +265,7 @@ namespace Voicemeeter
 
 		/******************************************************************************/
 		/*                                                                            */
-		/*									 Devices	                              */
+		/*                                   Devices                                  */
 		/*                                                                            */
 		/******************************************************************************/
 
@@ -295,6 +295,53 @@ namespace Voicemeeter
 			[MarshalAs(UnmanagedType.LPWStr)] StringBuilder wszHardwareId);    // unsigned short*
 
 
+
+		#endregion
+
+		/******************************************************************************/
+		/*                                                                            */
+		/*                             VB-AUDIO CALLBACK                              */
+		/*                                                                            */
+		/******************************************************************************/
+
+		#region VB-Audio
+
+		// Register your audio callback function to receive real time audio buffer
+		// it's possible to register up to 3x different Audio Callback in the same application or in 
+		// 3x different applications.In the same application, this is possible because Voicemeeter
+		// provides 3 kind of audio Streams:
+		//			- AUDIO INPUT INSERT(to process all Voicemeeter inputs as insert)
+		//			- AUDIO OUTPUT INSERT(to process all Voicemeeter BUS outputs as insert)
+		//			- ALL AUDIO I/O(to process all Voicemeeter i/o).
+		// Note: a single callback can be used to receive the 3 possible audio streams.
+		//
+		// param mode: callback type(main, input or bus output) see define below
+		// param pCallback: Pointer on your callback function.
+		// param lpUser: user pointer(pointer that will be passed in callback first argument).
+		// param szClientName[64]:	IN: Name of the application registering the Callback.
+		//							OUT: Name of the application already registered.
+		// return:	 0: OK (no error).
+		//			-1: error
+		//			 1: callback already registered (by another application).
+		[DllImport(VMRDLLName, CharSet = CharSet.Ansi)]
+		internal static extern int VBVMR_AudioCallbackRegister(int mode, InternalAudioCallback callback, IntPtr user, byte[] ClientName);
+
+		// Start / Stop Audio processing the Callback will be called with
+		// return :	 0: OK(no error).
+		//			-1: error
+		//			-2: no callback registred.
+		[DllImport(VMRDLLName)]
+		internal static extern int VBVMR_AudioCallbackStart();
+		[DllImport(VMRDLLName)]
+		internal static extern int VBVMR_AudioCallbackStop();
+
+		// Unregister your callback to release voicemeeter virtual driver
+		// (this function will automatically call VBVMR_AudioCallbackStop() function)
+		// return :	 0: OK(no error).
+		//			-1: error
+		//			 1: callback already unregistered.
+		[DllImport(VMRDLLName)]
+		internal static extern int VBVMR_AudioCallbackUnregister();
 
 		#endregion
 	}

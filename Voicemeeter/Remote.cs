@@ -1,5 +1,6 @@
 ﻿using Microsoft.Win32;
 using System;
+using System.Linq;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading.Tasks;
@@ -83,6 +84,15 @@ namespace Voicemeeter
 			return false;
 		}
 
+		/// <summary>
+		/// Start the VoiceMeeter program
+		/// </summary>
+		/// <param name="voicemeterType"></param>
+		public static RunError RunVoicemeeter(VoicemeeterType voicemeterType)
+		{
+			return (RunError)RemoteWrapper.VBVMR_RunVoicemeeter((int)voicemeterType);
+		}
+
 		#endregion
 
 		#region Parameters
@@ -107,7 +117,7 @@ namespace Voicemeeter
 		{
 			var buffer = new StringBuilder(512);
 			var code = RemoteWrapper.VBVMR_GetParameterStringW(parameter, buffer);
-			if (code == 0)
+			if (code == (int)GetSetParameterError.OK)
 				result = buffer.ToString();
 			else
 				result = string.Empty;
@@ -137,7 +147,7 @@ namespace Voicemeeter
 			float value = 0;
 			var code = RemoteWrapper.VBVMR_GetParameterFloat(parameter, ref value);
 
-			if (code == 0)
+			if (code == (int)GetSetParameterError.OK)
 				result = value;
 			else
 				result = 0;
@@ -195,9 +205,9 @@ namespace Voicemeeter
 		{
 
 			int _type = 0;
-			int res = RemoteWrapper.VBVMR_GetVoicemeeterType(ref _type);
+			int code = RemoteWrapper.VBVMR_GetVoicemeeterType(ref _type);
 
-			if (res == 0)
+			if (code == (int)VoicemeeterInfoError.OK)
 			{
 				if (_type > 0 && _type <= 3)
 				{
@@ -213,7 +223,7 @@ namespace Voicemeeter
 				type = VoicemeeterType.None;
 			}
 
-			return (VoicemeeterInfoError)res;
+			return (VoicemeeterInfoError)code;
 		}
 
 		/// <summary>
@@ -224,9 +234,9 @@ namespace Voicemeeter
 		public static VoicemeeterInfoError GetVoicemeeterVersion(out VoicemeeterVersion version)
 		{
 			long _ver = 0;
-			int res = RemoteWrapper.VBVMR_GetVoicemeeterVersion(ref _ver);
+			int code = RemoteWrapper.VBVMR_GetVoicemeeterVersion(ref _ver);
 
-			if (res == 0)
+			if (code == (int)VoicemeeterInfoError.OK)
 				version = new VoicemeeterVersion(
 					(int)(_ver & 0xFF000000) >> 24,
 					(int)(_ver & 0x00FF0000) >> 16,
@@ -236,7 +246,7 @@ namespace Voicemeeter
 			else
 				version = new VoicemeeterVersion();
 
-			return (VoicemeeterInfoError)res;
+			return (VoicemeeterInfoError)code;
 		}
 
 		#endregion
@@ -256,7 +266,7 @@ namespace Voicemeeter
 			float value = 0;
 			var code = (RemoteWrapper.VBVMR_GetLevel((int)type, channel, ref value));
 
-			if (code == 0)
+			if (code == (int)LevelError.OK)
 			{
 				result = value;
 			}
@@ -341,7 +351,7 @@ namespace Voicemeeter
 			return _Internal_GetInputOutputDeviceDescription(true, index, out type, out name, out hardwareId);
 		}
 
-		private static InputOutputGetDeviceError _Internal_GetInputOutputDeviceDescription(bool isInput, int index, out VoicemeeterDeviceType type, out string name, out string hardwareId)
+		internal static InputOutputGetDeviceError _Internal_GetInputOutputDeviceDescription(bool isInput, int index, out VoicemeeterDeviceType type, out string name, out string hardwareId)
 		{
 			int _type = 0;
 			StringBuilder _name = new StringBuilder(512);
@@ -355,7 +365,7 @@ namespace Voicemeeter
 				else
 					code = RemoteWrapper.VBVMR_Output_GetDeviceDescW(index, ref _type, _name, _id);
 
-				if (code == 0)
+				if (code == (int)InputOutputGetDeviceError.OK)
 				{
 					type = (VoicemeeterDeviceType)_type;
 					name = _name.ToString();
@@ -384,15 +394,6 @@ namespace Voicemeeter
 		#endregion
 
 		#region Commands
-
-		/// <summary>
-		/// Start the VoiceMeeter program
-		/// </summary>
-		/// <param name="voicemeterType"></param>
-		public static RunError RunVoicemeeter(VoicemeeterType voicemeterType)
-		{
-			return (RunError)RemoteWrapper.VBVMR_RunVoicemeeter((int)voicemeterType);
-		}
 
 		/// <summary>
 		/// Shutdown the VoiceMeeter program
@@ -451,6 +452,147 @@ namespace Voicemeeter
 		public static GetSetParameterError Save(string configurationFileName)
 		{
 			return SetParameterText(VoicemeeterCommand.Load, configurationFileName);
+		}
+
+		#endregion
+
+		#region VB-Audio
+
+		/// <summary>
+		/// Register your audio callback function to receive real time audio buffer
+		/// it's possible to register up to 3x different Audio Callback in the same application or in 
+		/// 3x different applications.In the same application, this is possible because Voicemeeter
+		/// provides 3 kind of audio Streams:
+		///			- AUDIO INPUT INSERT(to process all Voicemeeter inputs as insert)
+		///			- AUDIO OUTPUT INSERT(to process all Voicemeeter BUS outputs as insert)
+		///			- ALL AUDIO I/O(to process all Voicemeeter i/o).
+		/// Note: a single callback can be used to receive the 3 possible audio streams.
+		/// </summary>
+		/// <param name="mode">Callback mode</param>
+		/// <param name="callback"></param>
+		/// <param name="user">Custom user data</param>
+		/// <param name="clientName">Client name with maximum length 64</param>
+		/// <param name="alreadyRegisteredName">Name of already registered client</param>
+		/// <returns></returns>
+		public static AudioCallbackRegisterError AudioCallbackRegister(AudioCallbackMode mode, AudioCallback callback, object user, string clientName, out string alreadyRegisteredName)
+		{
+			const int maxLength = 64;
+			clientName = clientName.Substring(0, Math.Min(clientName.Length, maxLength));
+			var nameBytes = Enumerable.Repeat<byte>(0, maxLength).ToArray();
+			Encoding.Default.GetBytes(clientName, 0, clientName.Length, nameBytes, 0);
+
+			int code = -1;
+			switch (mode)
+			{
+				case AudioCallbackMode.Input:
+					ACF_Input = (u, c, d, useless) => { Internal_ProcessAudiocallbackData(AudioCallbackMode.Input, u, c, d); return 0; };
+
+					code = RemoteWrapper.VBVMR_AudioCallbackRegister((int)mode, ACF_Input, GCHandle.ToIntPtr(GCHandle.Alloc(user)), nameBytes);
+					if (code == 0)
+						audioCallbackInputInternal = callback;
+					break;
+				case AudioCallbackMode.Output:
+					ACF_Output = (u, c, d, useless) => { Internal_ProcessAudiocallbackData(AudioCallbackMode.Output, u, c, d); return 0; };
+
+					code = RemoteWrapper.VBVMR_AudioCallbackRegister((int)mode, ACF_Output, GCHandle.ToIntPtr(GCHandle.Alloc(user)), nameBytes);
+					if (code == 0)
+						audioCallbackOutputInternal = callback;
+					break;
+				case AudioCallbackMode.Main:
+					ACF_Main = (u, c, d, useless) => { Internal_ProcessAudiocallbackData(AudioCallbackMode.Main, u, c, d); return 0; };
+
+					code = RemoteWrapper.VBVMR_AudioCallbackRegister((int)mode, ACF_Main, GCHandle.ToIntPtr(GCHandle.Alloc(user)), nameBytes);
+					if (code == 0)
+						audioCallbackMainInternal = callback;
+					break;
+			}
+
+
+			if (code == (int)AudioCallbackRegisterError.AlreadyRegistered)
+			{
+				int idx = maxLength - 1;
+				for (int i = 0; i < maxLength; i++)
+					if (nameBytes[i] == 0)
+					{
+						idx = i;
+						break;
+					}
+
+				alreadyRegisteredName = Encoding.Default.GetString(nameBytes, 0, idx);
+				Console.WriteLine(alreadyRegisteredName);
+				return AudioCallbackRegisterError.AlreadyRegistered;
+			}
+			alreadyRegisteredName = "";
+
+			return (AudioCallbackRegisterError)code;
+		}
+
+		internal static AudioCallback audioCallbackInputInternal;
+		internal static AudioCallback audioCallbackOutputInternal;
+		internal static AudioCallback audioCallbackMainInternal;
+		//                                    AudioCallbackFucntion
+		internal static InternalAudioCallback ACF_Input;
+		internal static InternalAudioCallback ACF_Output;
+		internal static InternalAudioCallback ACF_Main;
+
+		// Maybe that's a bad solution, but at this moment i dont known better
+		internal static void Internal_ProcessAudiocallbackData(AudioCallbackMode mode, IntPtr user, AudioCommand command, IntPtr data)
+		{
+			object managed_user = ((GCHandle)user).Target;
+			object managed_data = null;
+
+			switch (command)
+			{
+				case AudioCommand.Starting:
+					managed_data = Marshal.PtrToStructure(data, typeof(AudioInfo));
+					break;
+				case AudioCommand.BufferIn:
+				case AudioCommand.BufferOut:
+				case AudioCommand.BufferMain:
+					managed_data = Marshal.PtrToStructure(data, typeof(AudioBuffer));
+					break;
+			}
+
+			switch (mode)
+			{
+				case AudioCallbackMode.Input:
+					audioCallbackInputInternal.Invoke(managed_user, command, managed_data);
+					break;
+				case AudioCallbackMode.Output:
+					audioCallbackOutputInternal.Invoke(managed_user, command, managed_data);
+					break;
+				case AudioCallbackMode.Main:
+					audioCallbackMainInternal.Invoke(managed_user, command, managed_data);
+					break;
+			}
+		}
+
+		/// <summary>
+		/// Start Audio processing the Callback will be called with
+		/// </summary>
+		/// <returns></returns>
+		public static AudioCallbackStartStopError AudioCallbackStart()
+		{
+			return (AudioCallbackStartStopError)RemoteWrapper.VBVMR_AudioCallbackStart();
+		}
+
+		/// <summary>
+		/// Stop Audio processing the Callback will be called with
+		/// </summary>
+		/// <returns></returns>
+		public static AudioCallbackStartStopError AudioCallbackStop()
+		{
+			return (AudioCallbackStartStopError)RemoteWrapper.VBVMR_AudioCallbackStop();
+		}
+
+		/// <summary>
+		/// Unregister your callback to release voicemeeter virtual driver
+		/// (this function will automatically call VBVMR_AudioCallbackStop() function)
+		/// </summary>
+		/// <returns></returns>
+		public static AudioCallbackUnregisterError AudioCallbackUnregister()
+		{
+			return (AudioCallbackUnregisterError)RemoteWrapper.VBVMR_AudioCallbackUnregister();
 		}
 
 		#endregion

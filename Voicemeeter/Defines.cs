@@ -1,11 +1,42 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading.Tasks;
 
 namespace Voicemeeter
 {
+	/// <summary>
+	/// VB-AUDIO Callback is called for different task to Initialize, perform and end your process.
+	/// VB-AUDIO Callback is part of single TIME CRITICAL Thread. 
+	/// VB-AUDIO Callback is non re-entrant (cannot be called while in process)
+	/// VB-AUDIO Callback is supposed to be REAL TIME when called to process buffer.
+	/// (it means that the process has to be performed as fast as possible, waiting cycles are forbidden.
+	/// do not use O/S synchronization object, even Critical_Section can generate waiting cycle. Do not use
+	/// system functions that can generate waiting cycle like display, disk or communication functions for example).
+	/// </summary>
+	/// <param name="user">User pointer given on callback registration.</param>
+	/// <param name="command">Reason why the callback is called.</param>
+	/// <param name="data">Pointer on structure, pending on nCommand.</param>
+	/// <param name="additional_data">Additional data, unused.</param>
+	/// <returns>0: always 0 (unused).</returns>
+	internal delegate int InternalAudioCallback(IntPtr user, AudioCommand command, IntPtr data, int additional_data);
+
+	/// <summary>
+	/// VB-AUDIO Callback is called for different task to Initialize, perform and end your process.
+	/// VB-AUDIO Callback is part of single TIME CRITICAL Thread. 
+	/// VB-AUDIO Callback is non re-entrant (cannot be called while in process)
+	/// VB-AUDIO Callback is supposed to be REAL TIME when called to process buffer.
+	/// (it means that the process has to be performed as fast as possible, waiting cycles are forbidden.
+	/// do not use O/S synchronization object, even Critical_Section can generate waiting cycle. Do not use
+	/// system functions that can generate waiting cycle like display, disk or communication functions for example).
+	/// </summary>
+	/// <param name="user">User data given on callback registration.</param>
+	/// <param name="command">Reason why the callback is called.</param>
+	/// <param name="data">Pointer on structure, pending on nCommand.</param>
+	public delegate void AudioCallback(object user, AudioCommand command, object data);
+
 	public enum RunError
 	{
 		OK = 0,
@@ -96,10 +127,92 @@ namespace Voicemeeter
 		ASIO = 5
 	}
 
+	public enum AudioCommand
+	{
+		/// <summary>
+		/// Command to initialize data according SR and buffer size
+		/// </summary>
+		Starting = 1,
+		/// <summary>
+		/// Command to release data
+		/// </summary>
+		Ending = 2,
+		/// <summary>
+		/// If change in audio stream, you will have to restart audio 
+		/// </summary>
+		Change = 3,
+		/// <summary>
+		/// Input insert
+		/// </summary>
+		BufferIn = 10,
+		/// <summary>
+		/// Bus output insert
+		/// </summary>
+		BufferOut = 11,
+		/// <summary>
+		/// All i/o
+		/// </summary>
+		BufferMain = 20
+	}
+
+	public enum AudioCallbackMode
+	{
+		Input = 1,
+		Output = 2,
+		Main = 4
+	}
+
 	public enum InputOutputGetDeviceError
 	{
 		OK = 0,
 		Error = -1
+	}
+
+	public enum AudioCallbackRegisterError
+	{
+		OK = 0,
+		Error = -1,
+		AlreadyRegistered = 1
+	}
+
+	public enum AudioCallbackStartStopError
+	{
+		OK = 0,
+		Error = -1,
+		NoCallbackRegistered = -1
+	}
+
+	public enum AudioCallbackUnregisterError
+	{
+		OK = 0,
+		Error = -1,
+		AlreadyUnregistered = 1
+	}
+
+	[StructLayout(LayoutKind.Sequential, CharSet = CharSet.Ansi, Pack = 1)]
+	public struct AudioInfo
+	{
+		[MarshalAs(UnmanagedType.I4)]
+		public int SampleRate;
+		[MarshalAs(UnmanagedType.I4)]
+		public int SamplePerFrame;
+	}
+
+	[StructLayout(LayoutKind.Sequential, CharSet = CharSet.Ansi, Pack = 1)]
+	public struct AudioBuffer
+	{
+		[MarshalAs(UnmanagedType.I4)]
+		int SampleRate;
+		[MarshalAs(UnmanagedType.I4)]
+		int SamplesPerFrame;
+		[MarshalAs(UnmanagedType.I4)]
+		int SizeOfInputBuffer;
+		[MarshalAs(UnmanagedType.I4)]
+		int SizeOfOutputBuffer;
+		[MarshalAs(UnmanagedType.ByValArray, SizeConst = 128)]
+		float[] InputBuffer;
+		[MarshalAs(UnmanagedType.ByValArray, SizeConst = 128)]
+		float[] OutputBuffer;
 	}
 
 	public struct VoicemeeterVersion
