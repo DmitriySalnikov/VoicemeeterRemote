@@ -199,6 +199,51 @@ namespace VoiceMeeterTest
 		}
 
 		[TestMethod]
+		public async Task TestAudioReceiving()
+		{
+			using (var _ = await Voicemeeter.Remote.Initialize(Voicemeeter.VoicemeeterType.VoicemeeterPotato).ConfigureAwait(false))
+			{
+				Voicemeeter.AudioCallback Callback = (user, command, data) =>
+				{
+					Console.WriteLine(user);
+					switch (command)
+					{
+						case Voicemeeter.AudioCommand.Starting:
+							var info = ((Voicemeeter.AudioInfo)data);
+							Console.WriteLine($"{info.SamplePerFrame} {info.SampleRate}");
+							break;
+						case Voicemeeter.AudioCommand.Ending:
+							Console.WriteLine("Ending");
+							break;
+						case Voicemeeter.AudioCommand.Change:
+							Console.WriteLine("Change");
+							break;
+						case Voicemeeter.AudioCommand.BufferIn:
+							var bufferIn = ((Voicemeeter.AudioBuffer)data);
+							Console.WriteLine("In");
+							break;
+						case Voicemeeter.AudioCommand.BufferOut:
+							var bufferOut = ((Voicemeeter.AudioBuffer)data);
+							Console.WriteLine("Out");
+							break;
+						case Voicemeeter.AudioCommand.BufferMain:
+							var bufferMain = ((Voicemeeter.AudioBuffer)data);
+							Console.WriteLine("Main");
+							break;
+					}
+				};
+
+				var code = Voicemeeter.Remote.AudioCallbackRegister(Voicemeeter.AudioCallbackMode.Main, Callback, "Some string to test", "MyClient", out string alreadyRegisteredName2);
+				Voicemeeter.Remote.AudioCallbackStart();
+
+				await Task.Delay(1000);
+
+				Assert.AreEqual(code, Voicemeeter.AudioCallbackRegisterError.OK);
+				Voicemeeter.Remote.Logout();
+			}
+		}
+
+		[TestMethod]
 		[Ignore]
 		public async Task TestVolume()
 		{
